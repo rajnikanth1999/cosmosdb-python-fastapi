@@ -6,4 +6,4 @@ RUN pip install fastapi && pip install fastapi uvicorn && pip install python-dot
 WORKDIR /cosmosdb-python-fastapi
 COPY . .
 EXPOSE 8000
-CMD ["poetry","run","uvicorn","main:app"]
+CMD ["uvicorn","main:app"]
