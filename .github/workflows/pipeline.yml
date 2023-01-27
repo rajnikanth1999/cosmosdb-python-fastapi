@@ -7,6 +7,9 @@ on:
     branches: [ "main" ]
 env: 
   DOCKER_IMAGE_NAME: 'cosmosdb-python-fastapi'
+  AZURE_WEB_APP_TEST: 'cosmosdb-test'
+  AZURE_WEB_APP_PROD: 'cosmosdb-production'
+
 jobs:
 
   build:
@@ -14,6 +17,41 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag '${{env.DOCKER_IMAGE_NAME}}':$(date +%s)
+      - uses: actions/checkout@v3
+      - name: Build the Docker image
+        run: docker build . --file Dockerfile --tag '${{env.DOCKER_IMAGE_NAME}}':$(date +%s)
+      - name: Docker Login
+        run: docker login --username '${{secrets.DOCKER_LOGIN}}' --password '${{secrets.DOCKER_PASSWORD}}'
+      - name: Tag the Docker image
+        run: docker tag '${{env.DOCKER_IMAGE_NAME}}':latest '${{secrets.DOCKER_LOGIN}}'/'${{env.DOCKER_IMAGE_NAME}}':latest
+      - name: Push the Docker image
+        run: docker push '${{secrets.DOCKER_LOGIN}}'/'${{env.DOCKER_IMAGE_NAME}}':latest
+  deploy-test:
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Azure Container Deployment
+        uses: Azure/webapps-deploy@v2
+        with:
+          app-name: '${{env.AZURE_WEB_APP_TEST}}'
+          images: '${{secrets.DOCKER_LOGIN}}/${{env.DOCKER_IMAGE_NAME}}:latest'
+
+  deploy-Production:
+    runs-on: ubuntu-latest
+    needs: deploy-test
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      
+      - name: Azure Container Deployment
+        uses: Azure/webapps-deploy@v2
+        with:
+          app-name: '${{env.AZURE_WEB_APP_PROD}}'
+          images: '${{secrets.DOCKER_LOGIN}}/${{env.DOCKER_IMAGE_NAME}}:latest'
